@@ -241,6 +241,14 @@ def current_username() -> str:
     return st.session_state.username
 
 
+def get_user_data(uname: str) -> dict:
+    """Load user data from session state cache, falling back to disk."""
+    key = f"data_{uname}"
+    if st.session_state.get(key) is None:
+        st.session_state[key] = load_data(uname)
+    return st.session_state[key]
+
+
 # ─── Auth Views ───────────────────────────────────────────────────────────────
 def render_auth():
     _, col, _ = st.columns([1, 2, 1])
@@ -343,7 +351,7 @@ def render_admin_panel():
 
 # ─── Main App Views ───────────────────────────────────────────────────────────
 def render_home(uname: str):
-    data = st.session_state.get(f"data_{uname}") or load_data(uname)
+    data = get_user_data(uname)
     st.session_state[f"data_{uname}"] = data
     persons = data.get("persons", {})
     global_history = data.get("global_history", [])
@@ -451,7 +459,7 @@ def render_home(uname: str):
 
 
 def render_person_detail(uname: str, pid: str):
-    data = st.session_state.get(f"data_{uname}") or load_data(uname)
+    data = get_user_data(uname)
     st.session_state[f"data_{uname}"] = data
     persons = data.get("persons", {})
 
@@ -622,7 +630,7 @@ def render_add_person(uname: str):
                 else:
                     with st.spinner(f"正在分析与 {name} 的关系…"):
                         analysis = analyze_relationship(name, records)
-                    data = st.session_state.get(f"data_{uname}") or load_data(uname)
+                    data = get_user_data(uname)
                     pid = add_person(uname, data, name, color, records, analysis)
                     st.session_state[f"data_{uname}"] = data
                     st.success(f"✅ 已添加 {name}，关系分析完成！")
@@ -656,7 +664,7 @@ with st.sidebar:
 
         uname = current_username()
         if uname:
-            data = st.session_state.get(f"data_{uname}") or load_data(uname)
+            data = get_user_data(uname)
             persons = data.get("persons", {})
             n = len(persons)
             avg = (
