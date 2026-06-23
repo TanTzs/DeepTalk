@@ -28,22 +28,27 @@ st.markdown("""
 
 html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
-.stApp { background-color: #0a0e1a; }
+.stApp { background-color: #f5f7fa; }
 
 /* Hide default chrome */
 #MainMenu, footer, header { visibility: hidden; }
 
-/* Cards */
+/* Person cards */
 .person-card {
-    background: linear-gradient(135deg, #131929 0%, #1a2236 100%);
-    border: 1px solid #2a3550;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 16px;
     padding: 24px 20px 18px;
     text-align: center;
     transition: all 0.25s ease;
     margin-bottom: 4px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
-.person-card:hover { border-color: #3d6bff; box-shadow: 0 0 24px rgba(61,107,255,0.18); }
+.person-card:hover {
+    border-color: #3d6bff;
+    box-shadow: 0 4px 20px rgba(61,107,255,0.14);
+    transform: translateY(-2px);
+}
 
 .avatar {
     width: 56px; height: 56px; border-radius: 50%;
@@ -54,9 +59,9 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
 .tag {
     display: inline-block;
-    background: rgba(61,107,255,0.15);
-    color: #7ea8ff;
-    border: 1px solid rgba(61,107,255,0.3);
+    background: #eff3ff;
+    color: #3d6bff;
+    border: 1px solid #c7d6ff;
     border-radius: 20px;
     padding: 2px 10px;
     font-size: 11px;
@@ -65,73 +70,103 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
 .health-track {
     height: 3px; border-radius: 2px;
-    background: #1e2a40; margin-top: 12px; overflow: hidden;
+    background: #e8edf5; margin-top: 12px; overflow: hidden;
 }
 .health-fill { height: 100%; border-radius: 2px; }
 
 /* Section headers */
 .section-label {
-    color: #8ba8d8; font-size: 11px;
-    font-weight: 500; letter-spacing: 2px;
+    color: #94a3b8; font-size: 11px;
+    font-weight: 600; letter-spacing: 2px;
     text-transform: uppercase; margin-bottom: 12px;
-}
-
-/* Chat bubbles */
-.bubble-user {
-    background: #1a3a6b; border-radius: 14px 14px 4px 14px;
-    padding: 10px 14px; margin: 6px 0; max-width: 85%;
-    margin-left: auto; color: #cdd9f5; font-size: 14px;
-}
-.bubble-ai {
-    background: #151e31; border-radius: 14px 14px 14px 4px;
-    padding: 10px 14px; margin: 6px 0; max-width: 90%;
-    color: #c8d3e8; font-size: 14px; border: 1px solid #222f4a;
 }
 
 /* Chat records panel */
 .records-panel {
-    background: #0f1626;
-    border: 1px solid #1e2d47;
+    background: #fafbfc;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
     padding: 16px;
     height: 480px;
     overflow-y: auto;
     font-size: 13px;
     line-height: 1.7;
-    color: #7a90b8;
+    color: #4a5568;
     white-space: pre-wrap;
     font-family: 'SF Mono', 'Fira Code', monospace;
 }
 
+/* Analysis info box */
+.info-box {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+
 /* Stat cards */
 .stat-card {
-    background: #131929;
-    border: 1px solid #1e2d47;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
     border-radius: 12px;
     padding: 16px;
     text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 
 /* Divider */
-hr { border-color: #1a2640 !important; }
+hr { border-color: #e8edf5 !important; }
 
 /* Streamlit button overrides */
 div[data-testid="stButton"] > button {
     border-radius: 10px !important;
-    border: 1px solid #2a3550 !important;
-    background: #131929 !important;
-    color: #a8c0e8 !important;
+    border: 1px solid #d1d9e8 !important;
+    background: #ffffff !important;
+    color: #4a5568 !important;
     font-size: 13px !important;
+    font-weight: 500 !important;
     transition: all 0.2s;
 }
 div[data-testid="stButton"] > button:hover {
     border-color: #3d6bff !important;
-    color: #7ea8ff !important;
+    color: #3d6bff !important;
+    background: #f5f8ff !important;
 }
 div[data-testid="stButton"] > button[kind="primary"] {
     background: linear-gradient(135deg, #2c50c7 0%, #3d6bff 100%) !important;
     border: none !important;
     color: #fff !important;
+}
+
+/* Input / textarea */
+div[data-testid="stTextInput"] input,
+div[data-testid="stTextArea"] textarea {
+    background: #ffffff !important;
+    border: 1px solid #d1d9e8 !important;
+    color: #1e2533 !important;
+    border-radius: 10px !important;
+}
+
+/* Chat input */
+div[data-testid="stChatInput"] textarea {
+    background: #ffffff !important;
+    border: 1px solid #d1d9e8 !important;
+    color: #1e2533 !important;
+}
+
+/* Expander */
+div[data-testid="stExpander"] {
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 10px !important;
+    background: #ffffff !important;
+}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background: #ffffff !important;
+    border-right: 1px solid #e2e8f0 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -142,9 +177,9 @@ def initials(name: str) -> str:
     return name[:2] if name else "?"
 
 def health_color(score: int) -> str:
-    if score >= 7: return "#4ade80"
-    if score >= 4: return "#facc15"
-    return "#f87171"
+    if score >= 7: return "#22c55e"
+    if score >= 4: return "#f59e0b"
+    return "#ef4444"
 
 def render_network(persons: dict):
     """Render PyVis social network graph."""
@@ -152,10 +187,10 @@ def render_network(persons: dict):
         from pyvis.network import Network
         import streamlit.components.v1 as components
 
-        net = Network(height="380px", width="100%", bgcolor="#0a0e1a", font_color="#8ca3d4")
+        net = Network(height="360px", width="100%", bgcolor="#f5f7fa", font_color="#4a5568")
         net.add_node(
-            "me", label="我", color="#3d6bff", size=28,
-            title="这是你", font={"size": 16, "color": "#ffffff"},
+            "me", label="我", color="#3d6bff", size=30,
+            title="这是你", font={"size": 16, "color": "#1e2533"},
         )
 
         for pid, p in persons.items():
@@ -163,17 +198,17 @@ def render_network(persons: dict):
             color = p.get("color", "#3d6bff")
             rtype = p.get("analysis", {}).get("relationship_type", "")
             net.add_node(
-                pid, label=p["name"], color=color, size=20,
+                pid, label=p["name"], color=color, size=22,
                 title=f"{p['name']} · {rtype}",
-                font={"size": 13, "color": "#c8d3e8"},
+                font={"size": 13, "color": "#1e2533"},
             )
             net.add_edge("me", pid, width=max(1, score / 3), color={"color": color, "opacity": 0.5})
 
         net.set_options("""{
-          "nodes": {"borderWidth": 0, "shadow": true},
+          "nodes": {"borderWidth": 2, "borderWidthSelected": 3, "shadow": true},
           "edges": {"smooth": {"type": "continuous"}},
           "physics": {
-            "forceAtlas2Based": {"gravitationalConstant": -60, "springLength": 120},
+            "forceAtlas2Based": {"gravitationalConstant": -60, "springLength": 130},
             "solver": "forceAtlas2Based",
             "stabilization": {"iterations": 120}
           },
@@ -181,9 +216,7 @@ def render_network(persons: dict):
         }""")
 
         html = net.generate_html()
-        # Dark background fix
-        html = html.replace('background-color:#ffffff', 'background-color:#0a0e1a')
-        components.html(html, height=390, scrolling=False)
+        components.html(html, height=370, scrolling=False)
 
     except ImportError:
         st.info("安装 pyvis 以显示关系图：`pip install pyvis`")
@@ -193,7 +226,7 @@ def render_network(persons: dict):
 if "data" not in st.session_state:
     st.session_state.data = load_data()
 if "view" not in st.session_state:
-    st.session_state.view = "home"           # home | add_person | person_detail
+    st.session_state.view = "home"
 if "selected_pid" not in st.session_state:
     st.session_state.selected_pid = None
 if "api_key_ok" not in st.session_state:
@@ -223,14 +256,14 @@ def render_api_key_setup():
 # ─── Views ────────────────────────────────────────────────────────────────────
 
 def render_home():
-    # ── Header ──
-    col_title, col_btn = st.columns([6, 1])
-    with col_title:
-        st.markdown(
-            '<p style="font-size:28px;font-weight:600;color:#e2e8f0;margin:0;">🕸️ DeepTalk</p>'
-            '<p style="color:#8ba8d8;font-size:13px;margin-top:2px;">你的 AI 社交关系分析助手</p>',
-            unsafe_allow_html=True,
-        )
+    # ── Header：title 占满宽度，按钮独立一行右对齐 ──
+    st.markdown(
+        '<p style="font-size:28px;font-weight:700;color:#1e2533;margin:0 0 2px;">🕸️ DeepTalk</p>'
+        '<p style="color:#94a3b8;font-size:13px;margin:0;">你的 AI 社交关系分析助手</p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+    _, col_btn = st.columns([5, 1])
     with col_btn:
         if st.button("＋ 添加联系人", type="primary", use_container_width=True):
             st.session_state.view = "add_person"
@@ -263,13 +296,13 @@ def render_home():
                 st.markdown(f"""
 <div class="person-card">
   <div class="avatar" style="background:{color};">{initials(person["name"])}</div>
-  <div style="color:#dde6f5;font-size:16px;font-weight:600;">{person["name"]}</div>
-  <div style="color:#8ab0d0;font-size:12px;margin:4px 0 10px;">{rtype}</div>
+  <div style="color:#1e2533;font-size:16px;font-weight:600;">{person["name"]}</div>
+  <div style="color:#94a3b8;font-size:12px;margin:4px 0 10px;">{rtype}</div>
   <div>{tags_html}</div>
   <div class="health-track">
     <div class="health-fill" style="width:{score*10}%;background:{hcolor};"></div>
   </div>
-  <div style="color:#7a98c0;font-size:11px;margin-top:6px;">健康度 {score}/10</div>
+  <div style="color:#94a3b8;font-size:11px;margin-top:6px;">健康度 {score}/10</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -280,19 +313,18 @@ def render_home():
 
         st.divider()
     else:
-        # ── Empty state ──
         st.markdown("""
-<div style="text-align:center;padding:70px 0;color:#6882ac;">
+<div style="text-align:center;padding:70px 0;color:#94a3b8;">
   <div style="font-size:52px;margin-bottom:12px;">🤝</div>
-  <div style="font-size:18px;color:#8ab0d0;margin-bottom:6px;">还没有联系人</div>
-  <div style="font-size:13px;color:#6882ac;">点击右上角「添加联系人」开始你的社交分析</div>
+  <div style="font-size:18px;color:#64748b;margin-bottom:6px;font-weight:500;">还没有联系人</div>
+  <div style="font-size:13px;">点击上方「添加联系人」开始你的社交分析</div>
 </div>
 """, unsafe_allow_html=True)
 
     # ── Global Agent ──
     st.markdown('<p class="section-label">全局关系顾问</p>', unsafe_allow_html=True)
     st.markdown(
-        '<p style="color:#7a98c0;font-size:12px;margin-bottom:8px;">'
+        '<p style="color:#94a3b8;font-size:13px;margin-bottom:10px;">'
         '了解你所有人际关系的 AI 顾问，可以分析社交模式、提供整体建议</p>',
         unsafe_allow_html=True,
     )
@@ -301,7 +333,7 @@ def render_home():
     with chat_box:
         if not global_history:
             st.markdown(
-                '<div style="text-align:center;color:#6882ac;padding:30px;font-size:13px;">'
+                '<div style="text-align:center;color:#94a3b8;padding:30px;font-size:13px;">'
                 '试试问：我的社交关系整体状态如何？</div>',
                 unsafe_allow_html=True,
             )
@@ -331,7 +363,7 @@ def render_person_detail(pid: str):
     analysis = person.get("analysis", {})
     chat_history = person.get("chat_history", [])
 
-    # ── Back / Header ──
+    # ── Header ──
     col_back, col_title, col_del = st.columns([1, 6, 1])
     with col_back:
         if st.button("← 返回", use_container_width=True):
@@ -346,8 +378,8 @@ def render_person_detail(pid: str):
             f'<span style="display:inline-block;background:{color};border-radius:50%;'
             f'width:32px;height:32px;line-height:32px;text-align:center;'
             f'font-weight:600;color:#fff;margin-right:10px;">{initials(person["name"])}</span>'
-            f'<span style="font-size:20px;font-weight:600;color:#e2e8f0;">{person["name"]}</span>'
-            f'<span style="color:{hcolor};font-size:12px;margin-left:12px;">● 健康度 {score}/10</span>',
+            f'<span style="font-size:20px;font-weight:700;color:#1e2533;">{person["name"]}</span>'
+            f'<span style="color:{hcolor};font-size:12px;margin-left:12px;font-weight:500;">● 健康度 {score}/10</span>',
             unsafe_allow_html=True,
         )
     with col_del:
@@ -412,15 +444,14 @@ def render_person_detail(pid: str):
         # Analysis summary card
         tags_html = "".join(f'<span class="tag">{t}</span>' for t in analysis.get("tags", []))
         st.markdown(f"""
-<div style="background:#0f1626;border:1px solid #1e2d47;border-radius:12px;padding:14px;margin-bottom:16px;">
-  <div style="color:#7a98c0;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">关系分析</div>
-  <div style="color:#c8d3e8;font-size:13px;line-height:1.6;">{analysis.get("summary", "暂无分析")}</div>
+<div class="info-box">
+  <div style="color:#94a3b8;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">关系分析</div>
+  <div style="color:#2d3748;font-size:13px;line-height:1.7;">{analysis.get("summary", "暂无分析")}</div>
   <div style="margin-top:10px;">{tags_html}</div>
-  <div style="color:#7a98c0;font-size:11px;margin-top:8px;">互动模式：{analysis.get("interaction_pattern", "暂无")}</div>
+  <div style="color:#94a3b8;font-size:11px;margin-top:8px;">互动模式：{analysis.get("interaction_pattern", "暂无")}</div>
 </div>
 """, unsafe_allow_html=True)
 
-        # Re-analyze button
         if st.button("🔄 重新分析关系", key=f"reanalyze_{pid}", use_container_width=True):
             with st.spinner("分析中…"):
                 new_analysis = analyze_relationship(person["name"], person["chat_records"])
@@ -434,7 +465,7 @@ def render_person_detail(pid: str):
         with chat_box:
             if not chat_history:
                 st.markdown(
-                    '<div style="text-align:center;color:#6882ac;padding:30px;font-size:13px;">'
+                    '<div style="text-align:center;color:#94a3b8;padding:30px;font-size:13px;">'
                     f'问问 Agent 关于你和 {person["name"]} 的关系吧</div>',
                     unsafe_allow_html=True,
                 )
@@ -444,7 +475,6 @@ def render_person_detail(pid: str):
                 else:
                     st.chat_message("assistant").write(msg["content"])
 
-        # Chat input
         if p_input := st.chat_input(f"问关于 {person['name']} 的问题…", key=f"chat_{pid}"):
             with st.spinner("思考中…"):
                 reply = chat_with_person(
@@ -460,7 +490,6 @@ def render_person_detail(pid: str):
             st.session_state.data = data
             st.rerun()
 
-        # Clear chat history
         if chat_history:
             if st.button("🗑 清空对话记录", key=f"clear_{pid}", use_container_width=True):
                 update_person_history(data, pid, [])
@@ -476,7 +505,7 @@ def render_add_person():
             st.rerun()
     with col_title:
         st.markdown(
-            '<p style="font-size:22px;font-weight:600;color:#e2e8f0;margin:0;">添加联系人</p>',
+            '<p style="font-size:22px;font-weight:700;color:#1e2533;margin:0;">添加联系人</p>',
             unsafe_allow_html=True,
         )
 
@@ -529,7 +558,6 @@ def render_add_person():
 with st.sidebar:
     st.markdown("### ⚙️ 数据管理")
 
-    # Stats
     n = len(persons)
     avg = (
         sum(p.get("analysis", {}).get("health_score", 5) for p in persons.values()) / n
@@ -538,19 +566,18 @@ with st.sidebar:
     st.markdown(f"""
 <div style="display:flex;gap:10px;margin-bottom:16px;">
   <div class="stat-card" style="flex:1;">
-    <div style="font-size:22px;font-weight:700;color:#7ea8ff;">{n}</div>
-    <div style="font-size:11px;color:#8ba8d8;">联系人</div>
+    <div style="font-size:22px;font-weight:700;color:#3d6bff;">{n}</div>
+    <div style="font-size:11px;color:#94a3b8;">联系人</div>
   </div>
   <div class="stat-card" style="flex:1;">
-    <div style="font-size:22px;font-weight:700;color:#4ade80;">{avg:.1f}</div>
-    <div style="font-size:11px;color:#8ba8d8;">平均健康度</div>
+    <div style="font-size:22px;font-weight:700;color:#22c55e;">{avg:.1f}</div>
+    <div style="font-size:11px;color:#94a3b8;">平均健康度</div>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
     st.divider()
 
-    # Export
     if persons:
         export_blob = json.dumps(data, ensure_ascii=False, indent=2)
         st.download_button(
@@ -561,7 +588,6 @@ with st.sidebar:
             use_container_width=True,
         )
 
-    # Import
     imp = st.file_uploader("📤 导入数据", type=["json"], key="import_data")
     if imp:
         try:
@@ -574,7 +600,7 @@ with st.sidebar:
             st.error(f"导入失败：{e}")
 
     st.divider()
-    st.markdown('<p style="color:#6882ac;font-size:11px;">数据存储于本地 data/persons.json</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#94a3b8;font-size:11px;">数据存储于本地 data/persons.json</p>', unsafe_allow_html=True)
 
 
 # ─── Router ───────────────────────────────────────────────────────────────────
