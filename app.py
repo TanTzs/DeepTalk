@@ -1,5 +1,4 @@
 import streamlit as st
-import os
 import json
 from datetime import datetime
 from dotenv import load_dotenv
@@ -12,6 +11,7 @@ from storage import (
     update_person_history, update_global_history, delete_person,
 )
 from agents import analyze_relationship, chat_with_person, chat_with_global_agent
+from auth import register, verify, is_admin_login, get_display_name, list_users, delete_user
 
 # ─── Page Config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -30,10 +30,8 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
 .stApp { background-color: #f5f7fa; }
 
-/* Hide default chrome */
 #MainMenu, footer, header { visibility: hidden; }
 
-/* Person cards */
 .person-card {
     background: #ffffff;
     border: 1px solid #e2e8f0;
@@ -74,14 +72,12 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 }
 .health-fill { height: 100%; border-radius: 2px; }
 
-/* Section headers */
 .section-label {
     color: #94a3b8; font-size: 11px;
     font-weight: 600; letter-spacing: 2px;
     text-transform: uppercase; margin-bottom: 12px;
 }
 
-/* Chat records panel */
 .records-panel {
     background: #fafbfc;
     border: 1px solid #e2e8f0;
@@ -96,7 +92,6 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     font-family: 'SF Mono', 'Fira Code', monospace;
 }
 
-/* Analysis info box */
 .info-box {
     background: #ffffff;
     border: 1px solid #e2e8f0;
@@ -106,7 +101,6 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 
-/* Stat cards */
 .stat-card {
     background: #ffffff;
     border: 1px solid #e2e8f0;
@@ -116,10 +110,27 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 
-/* Divider */
+.auth-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 40px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+}
+
+.user-row {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
 hr { border-color: #e8edf5 !important; }
 
-/* Streamlit button overrides */
 div[data-testid="stButton"] > button {
     border-radius: 10px !important;
     border: 1px solid #d1d9e8 !important;
@@ -140,7 +151,6 @@ div[data-testid="stButton"] > button[kind="primary"] {
     color: #fff !important;
 }
 
-/* Input / textarea */
 div[data-testid="stTextInput"] input,
 div[data-testid="stTextArea"] textarea {
     background: #ffffff !important;
@@ -149,24 +159,15 @@ div[data-testid="stTextArea"] textarea {
     border-radius: 10px !important;
 }
 
-/* Chat input */
-div[data-testid="stChatInput"] textarea {
+section[data-testid="stSidebar"] {
     background: #ffffff !important;
-    border: 1px solid #d1d9e8 !important;
-    color: #1e2533 !important;
+    border-right: 1px solid #e2e8f0 !important;
 }
 
-/* Expander */
 div[data-testid="stExpander"] {
     border: 1px solid #e2e8f0 !important;
     border-radius: 10px !important;
     background: #ffffff !important;
-}
-
-/* Sidebar */
-section[data-testid="stSidebar"] {
-    background: #ffffff !important;
-    border-right: 1px solid #e2e8f0 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -182,30 +183,26 @@ def health_color(score: int) -> str:
     return "#ef4444"
 
 def render_network(persons: dict):
-    """Render PyVis social network graph."""
     try:
         from pyvis.network import Network
         import streamlit.components.v1 as components
 
         net = Network(height="360px", width="100%", bgcolor="#f5f7fa", font_color="#4a5568")
-        net.add_node(
-            "me", label="我", color="#3d6bff", size=30,
-            title="这是你", font={"size": 16, "color": "#1e2533"},
-        )
+        net.add_node("me", label="我", color="#3d6bff", size=30,
+                     title="这是你", font={"size": 16, "color": "#1e2533"})
 
         for pid, p in persons.items():
             score = p.get("analysis", {}).get("health_score", 5)
             color = p.get("color", "#3d6bff")
             rtype = p.get("analysis", {}).get("relationship_type", "")
-            net.add_node(
-                pid, label=p["name"], color=color, size=22,
-                title=f"{p['name']} · {rtype}",
-                font={"size": 13, "color": "#1e2533"},
-            )
-            net.add_edge("me", pid, width=max(1, score / 3), color={"color": color, "opacity": 0.5})
+            net.add_node(pid, label=p["name"], color=color, size=22,
+                         title=f"{p['name']} · {rtype}",
+                         font={"size": 13, "color": "#1e2533"})
+            net.add_edge("me", pid, width=max(1, score / 3),
+                         color={"color": color, "opacity": 0.5})
 
         net.set_options("""{
-          "nodes": {"borderWidth": 2, "borderWidthSelected": 3, "shadow": true},
+          "nodes": {"borderWidth": 2, "shadow": true},
           "edges": {"smooth": {"type": "continuous"}},
           "physics": {
             "forceAtlas2Based": {"gravitationalConstant": -60, "springLength": 130},
@@ -215,54 +212,159 @@ def render_network(persons: dict):
           "interaction": {"hover": true, "tooltipDelay": 100}
         }""")
 
-        html = net.generate_html()
-        components.html(html, height=370, scrolling=False)
-
+        components.html(net.generate_html(), height=370, scrolling=False)
     except ImportError:
         st.info("安装 pyvis 以显示关系图：`pip install pyvis`")
 
 
 # ─── Session State ─────────────────────────────────────────────────────────────
-if "data" not in st.session_state:
-    st.session_state.data = load_data()
-if "view" not in st.session_state:
-    st.session_state.view = "home"
-if "selected_pid" not in st.session_state:
-    st.session_state.selected_pid = None
-if "api_key_ok" not in st.session_state:
-    st.session_state.api_key_ok = bool(os.getenv("DEEPSEEK_API_KEY"))
+def _init_state():
+    defaults = {
+        "logged_in": False,
+        "username": None,         # actual login username
+        "is_admin": False,
+        "view_as": None,          # admin: which user's data to view (None = admin panel)
+        "view": "home",
+        "selected_pid": None,
+    }
+    for k, v in defaults.items():
+        if k not in st.session_state:
+            st.session_state[k] = v
 
-data = st.session_state.data
-persons = data.get("persons", {})
-global_history = data.get("global_history", [])
-
-
-# ─── API Key Guard ─────────────────────────────────────────────────────────────
-def render_api_key_setup():
-    st.markdown("## 🔑 配置 DeepSeek API Key")
-    st.markdown("首次使用需要输入你的 DeepSeek API Key，之后保存在本地 `.env` 文件中。")
-    key_input = st.text_input("DeepSeek API Key", type="password", placeholder="sk-...")
-    if st.button("保存并开始", type="primary"):
-        if key_input.startswith("sk-"):
-            os.environ["DEEPSEEK_API_KEY"] = key_input
-            with open(".env", "w") as f:
-                f.write(f"DEEPSEEK_API_KEY={key_input}\n")
-            st.session_state.api_key_ok = True
-            st.rerun()
-        else:
-            st.error("Key 格式不正确，应以 sk- 开头")
+_init_state()
 
 
-# ─── Views ────────────────────────────────────────────────────────────────────
+def current_username() -> str:
+    """Returns the username whose data is currently being viewed."""
+    if st.session_state.is_admin and st.session_state.view_as:
+        return st.session_state.view_as
+    return st.session_state.username
 
-def render_home():
-    # ── Header：title 占满宽度，按钮独立一行右对齐 ──
+
+# ─── Auth Views ───────────────────────────────────────────────────────────────
+def render_auth():
+    _, col, _ = st.columns([1, 2, 1])
+    with col:
+        st.markdown(
+            '<div style="text-align:center;margin-bottom:32px;">'
+            '<p style="font-size:32px;font-weight:700;color:#1e2533;margin:0;">🕸️ DeepTalk</p>'
+            '<p style="color:#94a3b8;font-size:14px;margin-top:4px;">你的 AI 社交关系分析助手</p>'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+        tab_login, tab_register = st.tabs(["登录", "注册"])
+
+        with tab_login:
+            with st.form("login_form"):
+                username = st.text_input("用户名", placeholder="请输入用户名")
+                password = st.text_input("密码", type="password", placeholder="请输入密码")
+                submitted = st.form_submit_button("登录", type="primary", use_container_width=True)
+
+            if submitted:
+                if is_admin_login(username, password):
+                    st.session_state.logged_in = True
+                    st.session_state.username = username
+                    st.session_state.is_admin = True
+                    st.session_state.view_as = None
+                    st.rerun()
+                elif verify(username, password):
+                    st.session_state.logged_in = True
+                    st.session_state.username = username
+                    st.session_state.is_admin = False
+                    st.rerun()
+                else:
+                    st.error("用户名或密码错误")
+
+        with tab_register:
+            with st.form("register_form"):
+                new_username = st.text_input("用户名", placeholder="3-20 个字符", key="reg_u")
+                new_display = st.text_input("昵称（可选）", placeholder="显示名称", key="reg_d")
+                new_password = st.text_input("密码", type="password", placeholder="至少 6 位", key="reg_p")
+                new_password2 = st.text_input("确认密码", type="password", placeholder="再输一遍", key="reg_p2")
+                reg_submitted = st.form_submit_button("注册", type="primary", use_container_width=True)
+
+            if reg_submitted:
+                if new_password != new_password2:
+                    st.error("两次密码不一致")
+                else:
+                    ok, err = register(new_username, new_password, new_display)
+                    if ok:
+                        st.success("注册成功，请登录")
+                    else:
+                        st.error(err)
+
+
+# ─── Admin Panel ───────────────────────────────────────────────────────────────
+def render_admin_panel():
     st.markdown(
-        '<p style="font-size:28px;font-weight:700;color:#1e2533;margin:0 0 2px;">🕸️ DeepTalk</p>'
-        '<p style="color:#94a3b8;font-size:13px;margin:0;">你的 AI 社交关系分析助手</p>',
+        '<p style="font-size:24px;font-weight:700;color:#1e2533;margin:0;">🛡️ 管理员面板</p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+    users = list_users()
+    if not users:
+        st.info("目前还没有注册用户")
+        return
+
+    st.markdown('<p class="section-label">所有用户</p>', unsafe_allow_html=True)
+
+    for uname in users:
+        udata = load_data(uname)
+        n_persons = len(udata.get("persons", {}))
+        display = get_display_name(uname)
+
+        col_name, col_stat, col_view, col_del = st.columns([3, 2, 2, 1])
+        with col_name:
+            st.markdown(
+                f'<div style="padding:8px 0;color:#1e2533;font-weight:500;">'
+                f'{display} <span style="color:#94a3b8;font-size:12px;">@{uname}</span></div>',
+                unsafe_allow_html=True,
+            )
+        with col_stat:
+            st.markdown(
+                f'<div style="padding:8px 0;color:#64748b;font-size:13px;">{n_persons} 个联系人</div>',
+                unsafe_allow_html=True,
+            )
+        with col_view:
+            if st.button("查看数据", key=f"view_{uname}", use_container_width=True):
+                st.session_state.view_as = uname
+                st.session_state.view = "home"
+                st.session_state.selected_pid = None
+                st.rerun()
+        with col_del:
+            if st.button("删除", key=f"del_{uname}", use_container_width=True):
+                delete_user(uname)
+                st.rerun()
+
+        st.divider()
+
+
+# ─── Main App Views ───────────────────────────────────────────────────────────
+def render_home(uname: str):
+    data = st.session_state.get(f"data_{uname}") or load_data(uname)
+    st.session_state[f"data_{uname}"] = data
+    persons = data.get("persons", {})
+    global_history = data.get("global_history", [])
+
+    # Header
+    viewing_label = ""
+    if st.session_state.is_admin and st.session_state.view_as:
+        viewing_label = (
+            f' <span style="background:#eff3ff;color:#3d6bff;border-radius:6px;'
+            f'padding:2px 10px;font-size:12px;font-weight:500;">'
+            f'正在查看 {get_display_name(uname)} 的数据</span>'
+        )
+
+    st.markdown(
+        f'<p style="font-size:28px;font-weight:700;color:#1e2533;margin:0;">'
+        f'🕸️ DeepTalk{viewing_label}</p>'
+        f'<p style="color:#94a3b8;font-size:13px;margin:0;">你的 AI 社交关系分析助手</p>',
         unsafe_allow_html=True,
     )
     st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
+
     _, col_btn = st.columns([5, 1])
     with col_btn:
         if st.button("＋ 添加联系人", type="primary", use_container_width=True):
@@ -272,15 +374,12 @@ def render_home():
     st.divider()
 
     if persons:
-        # ── Network Graph ──
         st.markdown('<p class="section-label">社交关系图</p>', unsafe_allow_html=True)
         render_network(persons)
         st.divider()
 
-        # ── Person Cards ──
         st.markdown('<p class="section-label">联系人</p>', unsafe_allow_html=True)
-        cols_per_row = min(4, len(persons))
-        cols = st.columns(cols_per_row)
+        cols = st.columns(min(4, len(persons)))
 
         for idx, (pid, person) in enumerate(persons.items()):
             analysis = person.get("analysis", {})
@@ -289,10 +388,9 @@ def render_home():
             rtype = analysis.get("relationship_type", "")
             color = person.get("color", "#3d6bff")
             hcolor = health_color(score)
-
             tags_html = "".join(f'<span class="tag">{t}</span>' for t in tags)
 
-            with cols[idx % cols_per_row]:
+            with cols[idx % min(4, len(persons))]:
                 st.markdown(f"""
 <div class="person-card">
   <div class="avatar" style="background:{color};">{initials(person["name"])}</div>
@@ -305,8 +403,7 @@ def render_home():
   <div style="color:#94a3b8;font-size:11px;margin-top:6px;">健康度 {score}/10</div>
 </div>
 """, unsafe_allow_html=True)
-
-                if st.button("💬 打开", key=f"open_{pid}", use_container_width=True):
+                if st.button("💬 打开", key=f"open_{uname}_{pid}", use_container_width=True):
                     st.session_state.selected_pid = pid
                     st.session_state.view = "person_detail"
                     st.rerun()
@@ -321,7 +418,7 @@ def render_home():
 </div>
 """, unsafe_allow_html=True)
 
-    # ── Global Agent ──
+    # Global Agent
     st.markdown('<p class="section-label">全局关系顾问</p>', unsafe_allow_html=True)
     st.markdown(
         '<p style="color:#94a3b8;font-size:13px;margin-bottom:10px;">'
@@ -343,17 +440,21 @@ def render_home():
             else:
                 st.chat_message("assistant").write(msg["content"])
 
-    if g_input := st.chat_input("问全局顾问…", key="global_chat"):
+    if g_input := st.chat_input("问全局顾问…", key=f"global_chat_{uname}"):
         with st.spinner("分析中…"):
             reply = chat_with_global_agent(persons, g_input, global_history)
         global_history.append({"role": "user", "content": g_input})
         global_history.append({"role": "assistant", "content": reply})
-        update_global_history(data, global_history)
-        st.session_state.data = data
+        update_global_history(uname, data, global_history)
+        st.session_state[f"data_{uname}"] = data
         st.rerun()
 
 
-def render_person_detail(pid: str):
+def render_person_detail(uname: str, pid: str):
+    data = st.session_state.get(f"data_{uname}") or load_data(uname)
+    st.session_state[f"data_{uname}"] = data
+    persons = data.get("persons", {})
+
     if pid not in persons:
         st.error("联系人不存在")
         st.session_state.view = "home"
@@ -363,7 +464,6 @@ def render_person_detail(pid: str):
     analysis = person.get("analysis", {})
     chat_history = person.get("chat_history", [])
 
-    # ── Header ──
     col_back, col_title, col_del = st.columns([1, 6, 1])
     with col_back:
         if st.button("← 返回", use_container_width=True):
@@ -384,8 +484,8 @@ def render_person_detail(pid: str):
         )
     with col_del:
         if st.button("🗑 删除", use_container_width=True):
-            delete_person(data, pid)
-            st.session_state.data = data
+            delete_person(uname, data, pid)
+            st.session_state[f"data_{uname}"] = data
             st.session_state.view = "home"
             st.session_state.selected_pid = None
             st.rerun()
@@ -394,54 +494,38 @@ def render_person_detail(pid: str):
 
     left, right = st.columns([4, 6], gap="large")
 
-    # ─ Left: Chat Records ─
     with left:
         st.markdown('<p class="section-label">聊天记录</p>', unsafe_allow_html=True)
-
         records_text = person.get("chat_records", "")
         display_text = records_text if len(records_text) <= 4000 else records_text[-4000:]
         if len(records_text) > 4000:
             display_text = f"… (显示最近部分)\n\n{display_text}"
-
-        st.markdown(
-            f'<div class="records-panel">{display_text}</div>',
-            unsafe_allow_html=True,
-        )
+        st.markdown(f'<div class="records-panel">{display_text}</div>', unsafe_allow_html=True)
 
         st.markdown('<p class="section-label" style="margin-top:16px;">追加聊天记录</p>', unsafe_allow_html=True)
         with st.expander("上传或粘贴新聊天记录"):
             tab_up, tab_paste = st.tabs(["📁 文件", "📋 粘贴"])
             with tab_up:
-                uploaded = st.file_uploader("选择 txt 文件", type=["txt"], key=f"upload_{pid}")
+                uploaded = st.file_uploader("选择 txt 文件", type=["txt"], key=f"upload_{uname}_{pid}")
             with tab_paste:
-                new_text = st.text_area("粘贴聊天记录", height=140, key=f"paste_{pid}")
+                new_text = st.text_area("粘贴聊天记录", height=140, key=f"paste_{uname}_{pid}")
 
-            if st.button("追加并重新分析", key=f"append_{pid}", type="primary", use_container_width=True):
-                extra = ""
-                if uploaded:
-                    extra = uploaded.read().decode("utf-8", errors="ignore")
-                elif new_text:
-                    extra = new_text
-
+            if st.button("追加并重新分析", key=f"append_{uname}_{pid}", type="primary", use_container_width=True):
+                extra = uploaded.read().decode("utf-8", errors="ignore") if uploaded else new_text
                 if extra:
                     with st.spinner("正在更新并重新分析…"):
-                        update_chat_records(data, pid, extra)
-                        new_analysis = analyze_relationship(
-                            person["name"],
-                            data["persons"][pid]["chat_records"],
-                        )
-                        update_person_analysis(data, pid, new_analysis)
-                    st.session_state.data = data
+                        update_chat_records(uname, data, pid, extra)
+                        new_analysis = analyze_relationship(person["name"], data["persons"][pid]["chat_records"])
+                        update_person_analysis(uname, data, pid, new_analysis)
+                    st.session_state[f"data_{uname}"] = data
                     st.success("已更新！")
                     st.rerun()
                 else:
                     st.warning("请先上传或粘贴内容")
 
-    # ─ Right: Agent Chat ─
     with right:
         st.markdown('<p class="section-label">AI 关系顾问</p>', unsafe_allow_html=True)
 
-        # Analysis summary card
         tags_html = "".join(f'<span class="tag">{t}</span>' for t in analysis.get("tags", []))
         st.markdown(f"""
 <div class="info-box">
@@ -452,20 +536,19 @@ def render_person_detail(pid: str):
 </div>
 """, unsafe_allow_html=True)
 
-        if st.button("🔄 重新分析关系", key=f"reanalyze_{pid}", use_container_width=True):
+        if st.button("🔄 重新分析关系", key=f"reanalyze_{uname}_{pid}", use_container_width=True):
             with st.spinner("分析中…"):
                 new_analysis = analyze_relationship(person["name"], person["chat_records"])
-                update_person_analysis(data, pid, new_analysis)
-            st.session_state.data = data
+                update_person_analysis(uname, data, pid, new_analysis)
+            st.session_state[f"data_{uname}"] = data
             st.success("分析已更新")
             st.rerun()
 
-        # Chat history
         chat_box = st.container(height=300)
         with chat_box:
             if not chat_history:
                 st.markdown(
-                    '<div style="text-align:center;color:#94a3b8;padding:30px;font-size:13px;">'
+                    f'<div style="text-align:center;color:#94a3b8;padding:30px;font-size:13px;">'
                     f'问问 Agent 关于你和 {person["name"]} 的关系吧</div>',
                     unsafe_allow_html=True,
                 )
@@ -475,7 +558,7 @@ def render_person_detail(pid: str):
                 else:
                     st.chat_message("assistant").write(msg["content"])
 
-        if p_input := st.chat_input(f"问关于 {person['name']} 的问题…", key=f"chat_{pid}"):
+        if p_input := st.chat_input(f"问关于 {person['name']} 的问题…", key=f"chat_{uname}_{pid}"):
             with st.spinner("思考中…"):
                 reply = chat_with_person(
                     person_name=person["name"],
@@ -486,18 +569,18 @@ def render_person_detail(pid: str):
                 )
             chat_history.append({"role": "user", "content": p_input})
             chat_history.append({"role": "assistant", "content": reply})
-            update_person_history(data, pid, chat_history)
-            st.session_state.data = data
+            update_person_history(uname, data, pid, chat_history)
+            st.session_state[f"data_{uname}"] = data
             st.rerun()
 
         if chat_history:
-            if st.button("🗑 清空对话记录", key=f"clear_{pid}", use_container_width=True):
-                update_person_history(data, pid, [])
-                st.session_state.data = data
+            if st.button("🗑 清空对话记录", key=f"clear_{uname}_{pid}", use_container_width=True):
+                update_person_history(uname, data, pid, [])
+                st.session_state[f"data_{uname}"] = data
                 st.rerun()
 
 
-def render_add_person():
+def render_add_person(uname: str):
     col_back, col_title = st.columns([1, 8])
     with col_back:
         if st.button("← 返回", use_container_width=True):
@@ -527,27 +610,21 @@ def render_add_person():
             with tab_paste:
                 pasted = st.text_area("粘贴聊天记录", height=240, placeholder="将聊天记录粘贴到这里…")
 
-            submitted = st.form_submit_button(
-                "🔍 分析并添加", type="primary", use_container_width=True
-            )
+            submitted = st.form_submit_button("🔍 分析并添加", type="primary", use_container_width=True)
 
         if submitted:
             if not name:
                 st.error("请填写联系人名称")
             else:
-                records = ""
-                if uploaded:
-                    records = uploaded.read().decode("utf-8", errors="ignore")
-                elif pasted:
-                    records = pasted
-
+                records = uploaded.read().decode("utf-8", errors="ignore") if uploaded else pasted
                 if not records:
                     st.error("请上传或粘贴聊天记录")
                 else:
                     with st.spinner(f"正在分析与 {name} 的关系…"):
                         analysis = analyze_relationship(name, records)
-                    pid = add_person(data, name, color, records, analysis)
-                    st.session_state.data = data
+                    data = st.session_state.get(f"data_{uname}") or load_data(uname)
+                    pid = add_person(uname, data, name, color, records, analysis)
+                    st.session_state[f"data_{uname}"] = data
                     st.success(f"✅ 已添加 {name}，关系分析完成！")
                     st.balloons()
                     st.session_state.view = "home"
@@ -556,14 +633,37 @@ def render_add_person():
 
 # ─── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("### ⚙️ 数据管理")
+    if st.session_state.logged_in:
+        display = get_display_name(st.session_state.username) if not st.session_state.is_admin else "管理员"
+        st.markdown(
+            f'<p style="color:#1e2533;font-weight:600;font-size:15px;margin-bottom:4px;">👤 {display}</p>'
+            f'<p style="color:#94a3b8;font-size:12px;margin-bottom:16px;">@{st.session_state.username}</p>',
+            unsafe_allow_html=True,
+        )
 
-    n = len(persons)
-    avg = (
-        sum(p.get("analysis", {}).get("health_score", 5) for p in persons.values()) / n
-        if n else 0
-    )
-    st.markdown(f"""
+        if st.session_state.is_admin:
+            if st.button("🛡 管理面板", use_container_width=True):
+                st.session_state.view_as = None
+                st.session_state.view = "admin"
+                st.rerun()
+            if st.session_state.view_as:
+                if st.button("← 退出查看", use_container_width=True):
+                    st.session_state.view_as = None
+                    st.session_state.view = "admin"
+                    st.rerun()
+
+        st.divider()
+
+        uname = current_username()
+        if uname:
+            data = st.session_state.get(f"data_{uname}") or load_data(uname)
+            persons = data.get("persons", {})
+            n = len(persons)
+            avg = (
+                sum(p.get("analysis", {}).get("health_score", 5) for p in persons.values()) / n
+                if n else 0
+            )
+            st.markdown(f"""
 <div style="display:flex;gap:10px;margin-bottom:16px;">
   <div class="stat-card" style="flex:1;">
     <div style="font-size:22px;font-weight:700;color:#3d6bff;">{n}</div>
@@ -576,39 +676,47 @@ with st.sidebar:
 </div>
 """, unsafe_allow_html=True)
 
-    st.divider()
+            if persons:
+                export_blob = json.dumps(data, ensure_ascii=False, indent=2)
+                st.download_button(
+                    "📥 导出数据备份",
+                    data=export_blob,
+                    file_name=f"deeptalk_{uname}_{datetime.now().strftime('%Y%m%d')}.json",
+                    mime="application/json",
+                    use_container_width=True,
+                )
 
-    if persons:
-        export_blob = json.dumps(data, ensure_ascii=False, indent=2)
-        st.download_button(
-            "📥 导出数据备份",
-            data=export_blob,
-            file_name=f"deeptalk_{datetime.now().strftime('%Y%m%d')}.json",
-            mime="application/json",
-            use_container_width=True,
-        )
+            imp = st.file_uploader("📤 导入数据", type=["json"], key="import_data")
+            if imp:
+                try:
+                    imported = json.loads(imp.read())
+                    save_data(uname, imported)
+                    st.session_state[f"data_{uname}"] = imported
+                    st.success("导入成功！")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"导入失败：{e}")
 
-    imp = st.file_uploader("📤 导入数据", type=["json"], key="import_data")
-    if imp:
-        try:
-            imported = json.loads(imp.read())
-            save_data(imported)
-            st.session_state.data = imported
-            st.success("导入成功！")
+        st.divider()
+        if st.button("退出登录", use_container_width=True):
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
             st.rerun()
-        except Exception as e:
-            st.error(f"导入失败：{e}")
-
-    st.divider()
-    st.markdown('<p style="color:#94a3b8;font-size:11px;">数据存储于本地 data/persons.json</p>', unsafe_allow_html=True)
 
 
 # ─── Router ───────────────────────────────────────────────────────────────────
-if not st.session_state.api_key_ok:
-    render_api_key_setup()
-elif st.session_state.view == "add_person":
-    render_add_person()
-elif st.session_state.view == "person_detail" and st.session_state.selected_pid:
-    render_person_detail(st.session_state.selected_pid)
+if not st.session_state.logged_in:
+    render_auth()
+elif st.session_state.is_admin and st.session_state.view == "admin":
+    render_admin_panel()
 else:
-    render_home()
+    uname = current_username()
+    if not uname:
+        # Admin hasn't selected a user yet
+        render_admin_panel()
+    elif st.session_state.view == "add_person":
+        render_add_person(uname)
+    elif st.session_state.view == "person_detail" and st.session_state.selected_pid:
+        render_person_detail(uname, st.session_state.selected_pid)
+    else:
+        render_home(uname)
