@@ -71,7 +71,7 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
 /* Section headers */
 .section-label {
-    color: #4a5980; font-size: 11px;
+    color: #8ba8d8; font-size: 11px;
     font-weight: 500; letter-spacing: 2px;
     text-transform: uppercase; margin-bottom: 12px;
 }
@@ -120,7 +120,7 @@ div[data-testid="stButton"] > button {
     border-radius: 10px !important;
     border: 1px solid #2a3550 !important;
     background: #131929 !important;
-    color: #8ca3d4 !important;
+    color: #a8c0e8 !important;
     font-size: 13px !important;
     transition: all 0.2s;
 }
@@ -228,7 +228,7 @@ def render_home():
     with col_title:
         st.markdown(
             '<p style="font-size:28px;font-weight:600;color:#e2e8f0;margin:0;">🕸️ DeepTalk</p>'
-            '<p style="color:#4a5980;font-size:13px;margin-top:2px;">你的 AI 社交关系分析助手</p>',
+            '<p style="color:#8ba8d8;font-size:13px;margin-top:2px;">你的 AI 社交关系分析助手</p>',
             unsafe_allow_html=True,
         )
     with col_btn:
@@ -264,12 +264,12 @@ def render_home():
 <div class="person-card">
   <div class="avatar" style="background:{color};">{initials(person["name"])}</div>
   <div style="color:#dde6f5;font-size:16px;font-weight:600;">{person["name"]}</div>
-  <div style="color:#4a6080;font-size:12px;margin:4px 0 10px;">{rtype}</div>
+  <div style="color:#8ab0d0;font-size:12px;margin:4px 0 10px;">{rtype}</div>
   <div>{tags_html}</div>
   <div class="health-track">
     <div class="health-fill" style="width:{score*10}%;background:{hcolor};"></div>
   </div>
-  <div style="color:#3d5070;font-size:11px;margin-top:6px;">健康度 {score}/10</div>
+  <div style="color:#7a98c0;font-size:11px;margin-top:6px;">健康度 {score}/10</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -282,17 +282,17 @@ def render_home():
     else:
         # ── Empty state ──
         st.markdown("""
-<div style="text-align:center;padding:70px 0;color:#2a3a5a;">
+<div style="text-align:center;padding:70px 0;color:#6882ac;">
   <div style="font-size:52px;margin-bottom:12px;">🤝</div>
-  <div style="font-size:18px;color:#4a6080;margin-bottom:6px;">还没有联系人</div>
-  <div style="font-size:13px;color:#2a3a5a;">点击右上角「添加联系人」开始你的社交分析</div>
+  <div style="font-size:18px;color:#8ab0d0;margin-bottom:6px;">还没有联系人</div>
+  <div style="font-size:13px;color:#6882ac;">点击右上角「添加联系人」开始你的社交分析</div>
 </div>
 """, unsafe_allow_html=True)
 
     # ── Global Agent ──
     st.markdown('<p class="section-label">全局关系顾问</p>', unsafe_allow_html=True)
     st.markdown(
-        '<p style="color:#3d5070;font-size:12px;margin-bottom:8px;">'
+        '<p style="color:#7a98c0;font-size:12px;margin-bottom:8px;">'
         '了解你所有人际关系的 AI 顾问，可以分析社交模式、提供整体建议</p>',
         unsafe_allow_html=True,
     )
@@ -301,7 +301,7 @@ def render_home():
     with chat_box:
         if not global_history:
             st.markdown(
-                '<div style="text-align:center;color:#2a3a5a;padding:30px;font-size:13px;">'
+                '<div style="text-align:center;color:#6882ac;padding:30px;font-size:13px;">'
                 '试试问：我的社交关系整体状态如何？</div>',
                 unsafe_allow_html=True,
             )
@@ -413,10 +413,10 @@ def render_person_detail(pid: str):
         tags_html = "".join(f'<span class="tag">{t}</span>' for t in analysis.get("tags", []))
         st.markdown(f"""
 <div style="background:#0f1626;border:1px solid #1e2d47;border-radius:12px;padding:14px;margin-bottom:16px;">
-  <div style="color:#3d5070;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">关系分析</div>
+  <div style="color:#7a98c0;font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">关系分析</div>
   <div style="color:#c8d3e8;font-size:13px;line-height:1.6;">{analysis.get("summary", "暂无分析")}</div>
   <div style="margin-top:10px;">{tags_html}</div>
-  <div style="color:#3d5070;font-size:11px;margin-top:8px;">互动模式：{analysis.get("interaction_pattern", "暂无")}</div>
+  <div style="color:#7a98c0;font-size:11px;margin-top:8px;">互动模式：{analysis.get("interaction_pattern", "暂无")}</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -434,7 +434,7 @@ def render_person_detail(pid: str):
         with chat_box:
             if not chat_history:
                 st.markdown(
-                    '<div style="text-align:center;color:#2a3a5a;padding:30px;font-size:13px;">'
+                    '<div style="text-align:center;color:#6882ac;padding:30px;font-size:13px;">'
                     f'问问 Agent 关于你和 {person["name"]} 的关系吧</div>',
                     unsafe_allow_html=True,
                 )
@@ -539,11 +539,11 @@ with st.sidebar:
 <div style="display:flex;gap:10px;margin-bottom:16px;">
   <div class="stat-card" style="flex:1;">
     <div style="font-size:22px;font-weight:700;color:#7ea8ff;">{n}</div>
-    <div style="font-size:11px;color:#4a5980;">联系人</div>
+    <div style="font-size:11px;color:#8ba8d8;">联系人</div>
   </div>
   <div class="stat-card" style="flex:1;">
     <div style="font-size:22px;font-weight:700;color:#4ade80;">{avg:.1f}</div>
-    <div style="font-size:11px;color:#4a5980;">平均健康度</div>
+    <div style="font-size:11px;color:#8ba8d8;">平均健康度</div>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -574,7 +574,7 @@ with st.sidebar:
             st.error(f"导入失败：{e}")
 
     st.divider()
-    st.markdown('<p style="color:#2a3a5a;font-size:11px;">数据存储于本地 data/persons.json</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#6882ac;font-size:11px;">数据存储于本地 data/persons.json</p>', unsafe_allow_html=True)
 
 
 # ─── Router ───────────────────────────────────────────────────────────────────
