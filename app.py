@@ -32,27 +32,67 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 
 #MainMenu, footer, header { visibility: hidden; }
 
+/* Person cards — 3D effect */
 .person-card {
     background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
-    padding: 24px 20px 18px;
+    border: 1px solid #e8edf5;
+    border-radius: 20px;
+    padding: 0;
     text-align: center;
-    transition: all 0.25s ease;
+    cursor: pointer;
+    transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1),
+                box-shadow  0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    box-shadow:
+        0 2px 6px rgba(0,0,0,0.06),
+        0 1px 2px rgba(0,0,0,0.04);
+    position: relative;
+    overflow: hidden;
+    will-change: transform;
     margin-bottom: 4px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
 }
+.person-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        135deg,
+        rgba(255,255,255,0.55) 0%,
+        rgba(255,255,255,0.08) 45%,
+        transparent 100%
+    );
+    border-radius: 20px;
+    pointer-events: none;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.35s ease;
+}
+.person-card:hover::before { opacity: 1; }
 .person-card:hover {
-    border-color: #3d6bff;
-    box-shadow: 0 4px 20px rgba(61,107,255,0.14);
-    transform: translateY(-2px);
+    transform: perspective(900px) translateY(-14px) rotateX(8deg) scale(1.03);
+    box-shadow:
+        0 6px 16px rgba(0,0,0,0.07),
+        0 24px 56px rgba(0,0,0,0.13),
+        0 40px 80px rgba(61,107,255,0.07);
+}
+
+.card-header {
+    padding: 22px 16px 14px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 20px 20px 0 0;
+}
+.card-body {
+    padding: 14px 16px 16px;
+    background: #ffffff;
+    border-radius: 0 0 20px 20px;
 }
 
 .avatar {
-    width: 56px; height: 56px; border-radius: 50%;
+    width: 64px; height: 64px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 18px; font-weight: 600; color: #fff;
-    margin: 0 auto 12px; letter-spacing: 1px;
+    font-size: 20px; font-weight: 700; color: #fff;
+    margin: 0 auto 10px; letter-spacing: 1px;
+    position: relative; z-index: 2;
 }
 
 .tag {
@@ -67,8 +107,8 @@ html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
 }
 
 .health-track {
-    height: 3px; border-radius: 2px;
-    background: #e8edf5; margin-top: 12px; overflow: hidden;
+    height: 4px; border-radius: 2px;
+    background: #e8edf5; margin-top: 0; overflow: hidden;
 }
 .health-fill { height: 100%; border-radius: 2px; }
 
@@ -176,6 +216,11 @@ div[data-testid="stExpander"] {
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 def initials(name: str) -> str:
     return name[:2] if name else "?"
+
+def hex_to_rgba(hex_color: str, alpha: float) -> str:
+    h = hex_color.lstrip("#")
+    r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+    return f"rgba({r},{g},{b},{alpha})"
 
 def health_color(score: int) -> str:
     if score >= 7: return "#22c55e"
@@ -399,16 +444,43 @@ def render_home(uname: str):
             tags_html = "".join(f'<span class="tag">{t}</span>' for t in tags)
 
             with cols[idx % min(4, len(persons))]:
+                bg  = hex_to_rgba(color, 0.12)
+                bg2 = hex_to_rgba(color, 0.06)
+                shadow = hex_to_rgba(color, 0.35)
                 st.markdown(f"""
 <div class="person-card">
-  <div class="avatar" style="background:{color};">{initials(person["name"])}</div>
-  <div style="color:#1e2533;font-size:16px;font-weight:600;">{person["name"]}</div>
-  <div style="color:#94a3b8;font-size:12px;margin:4px 0 10px;">{rtype}</div>
-  <div>{tags_html}</div>
-  <div class="health-track">
-    <div class="health-fill" style="width:{score*10}%;background:{hcolor};"></div>
+  <!-- 彩色头部 -->
+  <div class="card-header" style="background:linear-gradient(135deg,{bg} 0%,{bg2} 100%);">
+    <!-- 装饰圆 -->
+    <div style="position:absolute;top:-18px;right:-18px;width:90px;height:90px;
+                border-radius:50%;background:{hex_to_rgba(color,0.1)};z-index:1;"></div>
+    <div style="position:absolute;bottom:-10px;left:-10px;width:50px;height:50px;
+                border-radius:50%;background:{hex_to_rgba(color,0.07)};z-index:1;"></div>
+    <!-- 头像 -->
+    <div class="avatar"
+         style="background:{color};
+                box-shadow:0 8px 24px {shadow};">
+      {initials(person["name"])}
+    </div>
+    <!-- 姓名 -->
+    <div style="color:#1e2533;font-size:17px;font-weight:700;position:relative;z-index:2;">
+      {person["name"]}
+    </div>
+    <!-- 关系类型徽章 -->
+    <div style="display:inline-block;background:{hex_to_rgba(color,0.18)};color:{color};
+                border-radius:20px;padding:3px 12px;font-size:11px;font-weight:600;
+                margin-top:6px;position:relative;z-index:2;">
+      {rtype or "联系人"}
+    </div>
   </div>
-  <div style="color:#94a3b8;font-size:11px;margin-top:6px;">健康度 {score}/10</div>
+  <!-- 白色内容区 -->
+  <div class="card-body">
+    <div style="margin-bottom:10px;">{tags_html}</div>
+    <div class="health-track">
+      <div class="health-fill" style="width:{score*10}%;background:{hcolor};"></div>
+    </div>
+    <div style="color:#94a3b8;font-size:11px;margin-top:5px;">健康度 {score}/10</div>
+  </div>
 </div>
 """, unsafe_allow_html=True)
                 if st.button("💬 打开", key=f"open_{uname}_{pid}", use_container_width=True):
