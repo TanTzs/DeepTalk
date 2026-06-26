@@ -35,7 +35,6 @@ def analyze_relationship(person_name: str, chat_records: str) -> dict:
     response = llm.invoke([HumanMessage(content=prompt)])
     content = response.content.strip()
 
-    # Extract JSON block robustly
     json_match = re.search(r"\{.*\}", content, re.DOTALL)
     if json_match:
         try:
@@ -126,3 +125,104 @@ def chat_with_global_agent(persons: dict, user_input: str, history: list) -> str
     messages.append(HumanMessage(content=user_input))
 
     return llm.invoke(messages).content
+
+
+def generate_game_scene(
+    characters: list[dict],
+    story_history: list[dict],
+    affinities: dict,
+    turn: int,
+    max_turns: int,
+) -> dict:
+    """Generate an interactive visual-novel scene with choices and affinity effects."""
+    llm = get_llm(temperature=0.88)
+    is_final = turn >= max_turns
+
+    chars_info = "\n".join(
+        f"- {c['name']}：{c.get('relationship_type', '联系人')}，{c.get('summary', '暂无描述')}"
+        for c in characters
+    )
+
+    if story_history:
+        hist_text = "\n".join(
+            f"[第{i + 1}幕] {s.get('scene', '')[:100]}…"
+            + (f"\n→ 玩家选择：{s.get('chosen_text', '')}" if s.get("chosen_text") else "")
+            for i, s in enumerate(story_history[-4:])
+        )
+    else:
+        hist_text = "（故事刚开始，请生成轻松有趣的开场场景）"
+
+    aff_text = "\n".join(f"- {name}：{score}/100" for name, score in affinities.items())
+
+    if is_final:
+        schema = """{
+  "scene": "结局场景叙述（150-200字，有完整的故事收尾和情感升华）",
+  "speaker": null,
+  "ending_type": "最佳结局或普通结局或遗憾结局（根据好感度选择一个）",
+  "ending_title": "结局标题（4-8字）",
+  "choices": []
+}"""
+        scene_tag = "最终结局"
+        extra_rules = "根据各角色好感度高低，写出相应的结局（高好感=温馨圆满，低好感=遗憾分别）。"
+    else:
+        schema = """{
+  "scene": "场景叙述（80-120字，生动有趣，体现角色真实性格）",
+  "speaker": "说话角色名，或null表示旁白叙述",
+  "choices": [
+    {"text": "选项A（15字以内）", "effects": {"角色名": 整数}},
+    {"text": "选项B（15字以内）", "effects": {"角色名": 整数}},
+    {"text": "选项C（15字以内）", "effects": {"角色名": 整数}}
+  ]
+}"""
+        scene_tag = f"第 {turn + 1} 幕"
+        extra_rules = (
+            "提供风格各异的3个选项（积极/中立/其他）。"
+            "每个选项影响1-2个角色好感度（变化范围-15到+15）。"
+            "好感度高的角色更主动热情，低的稍显疏远。"
+        )
+
+    prompt = f"""你是一个互动视觉小说编剧，根据用户真实的人际关系数据生成有趣的互动故事。
+
+【参与角色（及其与用户的真实关系）】
+{chars_info}
+
+【故事背景】这是一个轻松的日常/社交场景（如聚会、旅行、工作间隙等），角色们和用户都彼此认识。
+
+【已发生的故事】
+{hist_text}
+
+【当前好感度（满分100）】
+{aff_text}
+
+请生成【{scene_tag}】场景。要求：{extra_rules}
+
+严格按JSON输出，不要包含任何其他文字：
+{schema}"""
+
+    response = llm.invoke([HumanMessage(content=prompt)])
+    content = response.content.strip()
+
+    match = re.search(r"\{.*\}", content, re.DOTALL)
+    if match:
+        try:
+            return json.loads(match.group())
+        except json.JSONDecodeError:
+            pass
+
+    if is_final:
+        return {
+            "scene": "故事在这里画上了句号，留下了美好的记忆。",
+            "speaker": None,
+            "ending_type": "普通结局",
+            "ending_title": "相遇的印记",
+            "choices": [],
+        }
+    return {
+        "scene": "故事继续发展中……",
+        "speaker": None,
+        "choices": [
+            {"text": "继续前行", "effects": {}},
+            {"text": "停下脚步", "effects": {}},
+            {"text": "换个方向", "effects": {}},
+        ],
+    }

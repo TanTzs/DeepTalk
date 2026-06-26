@@ -10,7 +10,7 @@ from storage import (
     update_chat_records, update_person_analysis,
     update_person_history, update_global_history, delete_person,
 )
-from agents import analyze_relationship, chat_with_person, chat_with_global_agent
+from agents import analyze_relationship, chat_with_person, chat_with_global_agent, generate_game_scene
 from auth import register, verify, is_admin_login, get_display_name, list_users, delete_user
 
 # ─── Page Config ──────────────────────────────────────────────────────────────
@@ -209,6 +209,64 @@ div[data-testid="stExpander"] {
     border-radius: 10px !important;
     background: #ffffff !important;
 }
+
+/* ── Game mode ── */
+.game-scene-box {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 24px 28px;
+    margin: 12px 0 20px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    min-height: 150px;
+}
+.game-speaker {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}
+.game-narration {
+    font-size: 12px;
+    font-weight: 600;
+    color: #94a3b8;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+}
+.game-text {
+    font-size: 15px;
+    line-height: 1.95;
+    color: #2d3748;
+}
+
+.game-choice div[data-testid="stButton"] > button {
+    background: linear-gradient(135deg, #f8faff 0%, #ffffff 100%) !important;
+    border: 1px solid #c7d6ff !important;
+    color: #1e2533 !important;
+    font-size: 14px !important;
+    padding: 14px 20px !important;
+    text-align: left !important;
+    border-radius: 14px !important;
+    height: auto !important;
+    white-space: normal !important;
+    line-height: 1.5 !important;
+    transition: all 0.2s ease !important;
+}
+.game-choice div[data-testid="stButton"] > button:hover {
+    background: linear-gradient(135deg, #eff3ff 0%, #e8efff 100%) !important;
+    border-color: #3d6bff !important;
+    color: #3d6bff !important;
+    transform: translateX(6px) !important;
+    box-shadow: 0 4px 16px rgba(61,107,255,0.12) !important;
+}
+
+.ending-card {
+    border-radius: 20px;
+    padding: 32px;
+    text-align: center;
+    margin: 8px 0 20px;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -266,11 +324,13 @@ def render_network(persons: dict):
 def _init_state():
     defaults = {
         "logged_in": False,
-        "username": None,         # actual login username
+        "username": None,
         "is_admin": False,
-        "view_as": None,          # admin: which user's data to view (None = admin panel)
+        "view_as": None,
         "view": "home",
         "selected_pid": None,
+        "game": {},           # active game state dict
+        "game_selected": set(),  # pids selected on game_select screen
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -418,8 +478,15 @@ def render_home(uname: str):
     )
     st.markdown("<div style='height:12px'></div>", unsafe_allow_html=True)
 
-    _, col_btn = st.columns([5, 1])
-    with col_btn:
+    col_gap, col_game, col_add = st.columns([4, 1, 1])
+    with col_game:
+        game_disabled = len(persons) < 2
+        if st.button("🎮 故事模式", use_container_width=True, disabled=game_disabled,
+                     help="至少需要 2 位联系人" if game_disabled else "选择角色，开始互动故事"):
+            st.session_state.game_selected = set()
+            st.session_state.view = "game_select"
+            st.rerun()
+    with col_add:
         if st.button("＋ 添加联系人", type="primary", use_container_width=True):
             st.session_state.view = "add_person"
             st.rerun()
@@ -711,6 +778,359 @@ def render_add_person(uname: str):
                     st.rerun()
 
 
+# ─── Game Views ───────────────────────────────────────────────────────────────
+def render_game_select(uname: str):
+    col_back, col_title = st.columns([1, 8])
+    with col_back:
+        if st.button("← 返回", use_container_width=True):
+            st.session_state.view = "home"
+            st.rerun()
+    with col_title:
+        st.markdown(
+            '<p style="font-size:22px;font-weight:700;color:#1e2533;margin:0;">🎮 故事模式</p>',
+            unsafe_allow_html=True,
+        )
+
+    st.markdown(
+        '<p style="color:#94a3b8;font-size:13px;margin:4px 0 0;">从联系人中选择 2-4 位角色，AI 将根据你们的真实关系生成专属互动故事</p>',
+        unsafe_allow_html=True,
+    )
+    st.divider()
+
+    data = get_user_data(uname)
+    persons = data.get("persons", {})
+
+    if len(persons) < 2:
+        st.warning("至少需要 2 位联系人才能开始故事模式，请先添加更多联系人。")
+        return
+
+    selected: set = st.session_state.game_selected
+    n_sel = len(selected)
+
+    st.markdown(
+        f'<p style="color:#3d6bff;font-size:13px;font-weight:600;margin-bottom:8px;">已选 {n_sel}/4 人'
+        f'{"  ✓ 可以开始了" if n_sel >= 2 else "  · 再选一位即可开始"}</p>',
+        unsafe_allow_html=True,
+    )
+
+    cols = st.columns(min(4, len(persons)))
+    for idx, (pid, person) in enumerate(persons.items()):
+        analysis = person.get("analysis", {})
+        color = person.get("color", "#3d6bff")
+        is_sel = pid in selected
+        border = f"2px solid {color}" if is_sel else "1px solid #e8edf5"
+        bg = hex_to_rgba(color, 0.07) if is_sel else "#ffffff"
+        check = "✓ " if is_sel else ""
+
+        with cols[idx % min(4, len(persons))]:
+            st.markdown(f"""
+<div style="background:{bg};border:{border};border-radius:16px;
+            padding:16px;text-align:center;margin-bottom:4px;">
+  <div style="width:52px;height:52px;border-radius:50%;background:{color};
+              color:#fff;font-weight:700;font-size:16px;
+              display:flex;align-items:center;justify-content:center;
+              margin:0 auto 8px;">{initials(person["name"])}</div>
+  <div style="font-size:14px;font-weight:600;color:#1e2533;">{check}{person["name"]}</div>
+  <div style="font-size:11px;color:#94a3b8;margin-top:2px;">
+    {analysis.get("relationship_type", "联系人")}
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+            if is_sel:
+                if st.button("取消选择", key=f"desel_{pid}", use_container_width=True):
+                    selected.discard(pid)
+                    st.session_state.game_selected = selected
+                    st.rerun()
+            else:
+                if st.button("选择", key=f"sel_{pid}", use_container_width=True,
+                             disabled=(n_sel >= 4)):
+                    selected.add(pid)
+                    st.session_state.game_selected = selected
+                    st.rerun()
+
+    st.divider()
+
+    if 2 <= n_sel <= 4:
+        sel_names = ", ".join(persons[pid]["name"] for pid in selected if pid in persons)
+        st.markdown(
+            f'<p style="color:#64748b;font-size:13px;">参与角色：<b>{sel_names}</b></p>',
+            unsafe_allow_html=True,
+        )
+        if st.button("开始故事 →", type="primary", use_container_width=True):
+            selected_list = list(selected)
+            chars_data = []
+            affinities = {}
+            for pid in selected_list:
+                if pid not in persons:
+                    continue
+                p = persons[pid]
+                a = p.get("analysis", {})
+                chars_data.append({
+                    "name": p["name"],
+                    "relationship_type": a.get("relationship_type", "联系人"),
+                    "summary": a.get("summary", ""),
+                    "tags": a.get("tags", []),
+                })
+                affinities[p["name"]] = min(100, a.get("health_score", 5) * 10)
+
+            with st.spinner("正在生成故事开场…"):
+                opening = generate_game_scene(chars_data, [], affinities, 0, 6)
+
+            st.session_state.game = {
+                "selected_pids": selected_list,
+                "chars_data": chars_data,
+                "story": [],
+                "affinities": affinities,
+                "current_scene": opening,
+                "turn": 1,
+                "max_turns": 6,
+                "is_over": False,
+                "last_effects": {},
+            }
+            st.session_state.game_selected = set()
+            st.session_state.view = "game_play"
+            st.rerun()
+    else:
+        st.button("开始故事 →", disabled=True, use_container_width=True,
+                  help="请选择 2-4 位角色")
+
+
+def render_game_play(uname: str):
+    game = st.session_state.get("game", {})
+    if not game:
+        st.session_state.view = "home"
+        st.rerun()
+        return
+
+    data = get_user_data(uname)
+    persons = data.get("persons", {})
+
+    selected_pids: list = game["selected_pids"]
+    chars_data: list = game["chars_data"]
+    affinities: dict = game["affinities"]
+    current_scene: dict = game.get("current_scene", {})
+    turn: int = game["turn"]
+    max_turns: int = game["max_turns"]
+    is_over: bool = game.get("is_over", False)
+    last_effects: dict = game.get("last_effects", {})
+
+    # ── Header ──
+    col_back, col_prog, col_quit = st.columns([1, 6, 1])
+    with col_back:
+        if st.button("← 退出", use_container_width=True):
+            st.session_state.game = {}
+            st.session_state.view = "home"
+            st.rerun()
+    with col_prog:
+        if not is_over:
+            st.progress((turn - 1) / max_turns,
+                        text=f"第 {turn} / {max_turns} 回合")
+        else:
+            st.progress(1.0, text="故事已结束")
+    with col_quit:
+        if is_over:
+            if st.button("再来一局", type="primary", use_container_width=True):
+                st.session_state.game = {}
+                st.session_state.game_selected = set()
+                st.session_state.view = "game_select"
+                st.rerun()
+
+    # ── Affinity bars ──
+    aff_cols = st.columns(len(selected_pids))
+    for i, pid in enumerate(selected_pids):
+        if pid not in persons:
+            continue
+        person = persons[pid]
+        name = person["name"]
+        color = person.get("color", "#3d6bff")
+        score = affinities.get(name, 50)
+        delta = last_effects.get(name, 0)
+        bar_color = "#22c55e" if score >= 70 else "#f59e0b" if score >= 40 else "#ef4444"
+        delta_html = ""
+        if delta > 0:
+            delta_html = f'<span style="color:#22c55e;font-size:11px;margin-left:4px;">+{delta}</span>'
+        elif delta < 0:
+            delta_html = f'<span style="color:#ef4444;font-size:11px;margin-left:4px;">{delta}</span>'
+
+        with aff_cols[i]:
+            st.markdown(f"""
+<div style="text-align:center;padding:6px 4px;">
+  <div style="width:36px;height:36px;border-radius:50%;background:{color};
+              color:#fff;font-weight:700;font-size:13px;
+              display:flex;align-items:center;justify-content:center;
+              margin:0 auto 4px;">{initials(name)}</div>
+  <div style="font-size:12px;font-weight:600;color:#1e2533;">{name}{delta_html}</div>
+  <div class="health-track" style="margin-top:4px;">
+    <div class="health-fill" style="width:{score}%;background:{bar_color};
+         transition:width 0.6s ease;"></div>
+  </div>
+  <div style="font-size:11px;color:#64748b;margin-top:2px;">{score}/100</div>
+</div>
+""", unsafe_allow_html=True)
+
+    st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+
+    if not current_scene:
+        st.info("加载中…")
+        return
+
+    speaker = current_scene.get("speaker")
+    scene_text = current_scene.get("scene", "")
+
+    # ── Character avatars ──
+    speaker_color = "#3d6bff"
+    char_cards = []
+    for pid in selected_pids:
+        if pid not in persons:
+            continue
+        p = persons[pid]
+        name = p["name"]
+        color = p.get("color", "#3d6bff")
+        is_speaking = speaker == name
+        if is_speaking:
+            speaker_color = color
+        size = "68px" if is_speaking else "46px"
+        opacity = "1" if (is_speaking or not speaker) else "0.4"
+        glow = f"0 0 24px {hex_to_rgba(color, 0.55)}" if is_speaking else "none"
+        font = "20px" if is_speaking else "13px"
+        name_weight = "700" if is_speaking else "400"
+        name_color = "#1e2533" if is_speaking else "#94a3b8"
+        char_cards.append(f"""
+<div style="text-align:center;flex:1;max-width:100px;">
+  <div style="width:{size};height:{size};border-radius:50%;background:{color};
+              color:#fff;font-weight:700;font-size:{font};
+              display:flex;align-items:center;justify-content:center;
+              margin:0 auto;opacity:{opacity};box-shadow:{glow};
+              transition:all 0.35s ease;">{initials(name)}</div>
+  <div style="font-size:12px;font-weight:{name_weight};color:{name_color};
+              margin-top:6px;transition:color 0.3s;">{name}</div>
+</div>""")
+
+    st.markdown(
+        f'<div style="display:flex;justify-content:center;gap:16px;'
+        f'padding:16px 0 8px;max-width:500px;margin:0 auto;">{"".join(char_cards)}</div>',
+        unsafe_allow_html=True,
+    )
+
+    # ── Scene text box ──
+    if speaker:
+        speaker_label = (
+            f'<div class="game-speaker" style="color:{speaker_color};">{speaker}</div>'
+        )
+    else:
+        speaker_label = '<div class="game-narration">— 旁 白 —</div>'
+
+    st.markdown(f"""
+<div class="game-scene-box">
+  {speaker_label}
+  <div class="game-text">{scene_text}</div>
+</div>
+""", unsafe_allow_html=True)
+
+    # ── Ending ──
+    if is_over or not current_scene.get("choices"):
+        ending_type = current_scene.get("ending_type", "普通结局")
+        ending_title = current_scene.get("ending_title", "故事结束")
+        if "最佳" in ending_type:
+            emoji, end_color = "❤️", "#22c55e"
+        elif "遗憾" in ending_type:
+            emoji, end_color = "😔", "#f59e0b"
+        else:
+            emoji, end_color = "😊", "#3d6bff"
+
+        final_scores = "".join(
+            f'<div style="text-align:center;padding:0 12px;">'
+            f'<div style="font-size:13px;font-weight:600;color:{persons[pid].get("color","#3d6bff")};">'
+            f'{persons[pid]["name"]}</div>'
+            f'<div style="font-size:24px;font-weight:700;color:#1e2533;">'
+            f'{affinities.get(persons[pid]["name"], 50)}</div>'
+            f'<div style="font-size:11px;color:#94a3b8;">好感度</div>'
+            f'</div>'
+            for pid in selected_pids if pid in persons
+        )
+
+        st.markdown(f"""
+<div class="ending-card" style="background:linear-gradient(135deg,
+     {hex_to_rgba(end_color,0.08)} 0%,{hex_to_rgba(end_color,0.03)} 100%);
+     border:1px solid {hex_to_rgba(end_color,0.25)};">
+  <div style="font-size:40px;margin-bottom:6px;">{emoji}</div>
+  <div style="font-size:12px;font-weight:700;color:{end_color};
+              letter-spacing:2px;">{ending_type}</div>
+  <div style="font-size:22px;font-weight:700;color:#1e2533;margin:6px 0 20px;">
+    {ending_title}</div>
+  <div style="display:flex;justify-content:center;flex-wrap:wrap;
+              border-top:1px solid {hex_to_rgba(end_color,0.15)};
+              padding-top:16px;gap:8px;">{final_scores}</div>
+</div>
+""", unsafe_allow_html=True)
+
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("🎮 再来一局", type="primary", use_container_width=True):
+                st.session_state.game = {}
+                st.session_state.game_selected = set()
+                st.session_state.view = "game_select"
+                st.rerun()
+        with c2:
+            if st.button("← 返回主页", use_container_width=True):
+                st.session_state.game = {}
+                st.session_state.view = "home"
+                st.rerun()
+        return
+
+    # ── Choices ──
+    st.markdown(
+        '<p style="color:#94a3b8;font-size:11px;font-weight:600;letter-spacing:2px;'
+        'text-transform:uppercase;margin:4px 0 8px;text-align:center;">— 请 做 出 选 择 —</p>',
+        unsafe_allow_html=True,
+    )
+
+    choices = current_scene.get("choices", [])
+    labels = "ABC"
+    for i, choice in enumerate(choices):
+        choice_text = choice.get("text", f"选项 {i + 1}")
+        effects: dict = choice.get("effects", {})
+        hints = []
+        for name, delta in effects.items():
+            if delta > 0:
+                hints.append(f"↑{name}")
+            elif delta < 0:
+                hints.append(f"↓{name}")
+        hint_str = f"   {'  '.join(hints)}" if hints else ""
+        btn_label = f"{labels[i] if i < 3 else i+1}.  {choice_text}{hint_str}"
+
+        st.markdown('<div class="game-choice">', unsafe_allow_html=True)
+        if st.button(btn_label, key=f"choice_{i}_{turn}", use_container_width=True):
+            new_affinities = dict(affinities)
+            for name, delta in effects.items():
+                if name in new_affinities:
+                    new_affinities[name] = max(0, min(100, new_affinities[name] + delta))
+
+            game["story"].append({
+                "scene": scene_text,
+                "speaker": speaker,
+                "chosen_text": choice_text,
+            })
+            game["affinities"] = new_affinities
+            game["last_effects"] = effects
+            new_turn = turn + 1
+            game["turn"] = new_turn
+
+            with st.spinner("故事继续中…"):
+                next_scene = generate_game_scene(
+                    chars_data, game["story"], new_affinities, new_turn, max_turns
+                )
+
+            game["current_scene"] = next_scene
+            if new_turn >= max_turns or not next_scene.get("choices"):
+                game["is_over"] = True
+
+            st.session_state.game = game
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+
 # ─── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     if st.session_state.logged_in:
@@ -798,5 +1218,9 @@ else:
         render_add_person(uname)
     elif st.session_state.view == "person_detail" and st.session_state.selected_pid:
         render_person_detail(uname, st.session_state.selected_pid)
+    elif st.session_state.view == "game_select":
+        render_game_select(uname)
+    elif st.session_state.view == "game_play":
+        render_game_play(uname)
     else:
         render_home(uname)
